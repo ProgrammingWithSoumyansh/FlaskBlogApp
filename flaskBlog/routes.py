@@ -1,15 +1,16 @@
 from flaskBlog import app
 from flask import render_template
-from flaskBlog.forms import RegistrationForm,LoginForm
+from flaskBlog.forms import RegistrationForm,LoginForm,PostForm
 from flask import flash
 from flask import url_for,redirect
-from flaskBlog.models import User
+from flaskBlog.models import User, Post
 from flaskBlog import bcrypt,db
-from flask_login import login_user,logout_user
+from flask_login import login_user, logout_user, current_user, login_required
+
+
 @app.route('/')
 def home():
-    posts =[{"title":"1st post","Description":"1st Description"},
-            {"title":"2nd post","Description":"2nd Description"}]
+    posts = Post.query.order_by(Post.date_posted.desc()).all()
     return render_template('index.html',posts=posts)
 
 @app.route('/about')
@@ -47,3 +48,17 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/create_post',methods=['GET','POST'])
+@login_required
+def create_post():
+    form = PostForm()
+    if form.validate_on_submit():
+        post = Post(title = form.title.data,description=form.description.data,
+                    user_id = current_user.id
+                    )
+        db.session.add(post)
+        db.session.commit()
+        flash(f'Post has been created','success')
+        return redirect(url_for('home'))
+    return render_template('create_post.html',title="Add Post",form=form)
