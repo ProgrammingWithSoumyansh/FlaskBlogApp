@@ -5,6 +5,7 @@ from flask import flash
 from flask import url_for,redirect
 from flaskBlog.models import User
 from flaskBlog import bcrypt,db
+from flask_login import login_user,logout_user
 @app.route('/')
 def home():
     posts =[{"title":"1st post","Description":"1st Description"},
@@ -33,5 +34,16 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        flash(f'User logged in','success')
+        user = User.query.filter_by(email=form.email.data).first()
+        if user and bcrypt.check_password_hash(user.password,form.password.data):
+            login_user(user)
+            flash(f'You are logged in','success')
+            return redirect(url_for('home'))
+        else:
+            flash(f'Invalid credentials','danger')
     return render_template('login.html',title='Sign In',form=form)
+
+@app.route('/logout')
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
