@@ -1,7 +1,7 @@
 from flaskBlog import app
 from flask import render_template
 from flaskBlog.forms import RegistrationForm,LoginForm,PostForm
-from flask import flash
+from flask import flash,request
 from flask import url_for,redirect
 from flaskBlog.models import User, Post
 from flaskBlog import bcrypt,db
@@ -39,7 +39,11 @@ def login():
         if user and bcrypt.check_password_hash(user.password,form.password.data):
             login_user(user)
             flash(f'You are logged in','success')
-            return redirect(url_for('home'))
+            next_page = request.args.get('next')
+            if next_page:
+                return redirect(next_page)
+            else:
+                return redirect(url_for('home'))
         else:
             flash(f'Invalid credentials','danger')
     return render_template('login.html',title='Sign In',form=form)
@@ -61,4 +65,24 @@ def create_post():
         db.session.commit()
         flash(f'Post has been created','success')
         return redirect(url_for('home'))
-    return render_template('create_post.html',title="Add Post",form=form)
+    return render_template('create_post.html',title="Add Post",form=form,heading = "Create Post")
+
+@app.route('/post/<int:post_id>',methods =['GET','POST'])
+def get_post(post_id):
+    post = Post.query.get(post_id)
+    return render_template('get_post.html',filter = f'Post {post_id}',post = post)
+
+@app.route('/post/<int:post_id>/update',methods =['GET','POST'])
+def update_post(post_id):
+    form = PostForm()
+    post = Post.query.get(post_id)
+    if form.validate_on_submit():
+        post.title = form.title.data
+        post.description = form.description.data
+        db.session.commit()
+        flash('Your post has been updated','success')
+        return redirect(url_for('home'))
+    elif request.method == 'GET':
+        form.title.data = post.title
+        form.description.data = post.description
+    return render_template('create_post.html',title=f'Update Post {post_id}',form=form,heading = "Update Post")
