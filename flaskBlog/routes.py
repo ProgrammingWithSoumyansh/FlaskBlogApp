@@ -1,7 +1,7 @@
 from flaskBlog import app
 from flask import render_template
 from flaskBlog.forms import RegistrationForm,LoginForm,PostForm
-from flask import flash,request
+from flask import flash,request,abort
 from flask import url_for,redirect
 from flaskBlog.models import User, Post
 from flaskBlog import bcrypt,db
@@ -19,6 +19,8 @@ def about():
 
 @app.route('/register',methods=['GET','POST'])
 def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
     form = RegistrationForm()
     if form.validate_on_submit():
         hashed_password=bcrypt.generate_password_hash(form.password.data).decode('utf-8')
@@ -33,6 +35,8 @@ def register():
 
 @app.route('/login',methods=['GET','POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('home'))
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
@@ -76,6 +80,9 @@ def get_post(post_id):
 def update_post(post_id):
     form = PostForm()
     post = Post.query.get(post_id)
+    if current_user != post.author:
+        abort(403)
+
     if form.validate_on_submit():
         post.title = form.title.data
         post.description = form.description.data
@@ -86,3 +93,12 @@ def update_post(post_id):
         form.title.data = post.title
         form.description.data = post.description
     return render_template('create_post.html',title=f'Update Post {post_id}',form=form,heading = "Update Post")
+
+@app.route('/post/<int:post_id>/delete')
+def delete_post(post_id):
+    post = Post.query.get(post_id)
+    if current_user!=post.author:
+        abort(403)
+    db.session.delete(post)
+    db.session.commit()
+    return redirect(url_for('home'))
